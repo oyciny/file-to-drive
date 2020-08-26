@@ -1,70 +1,58 @@
 import os
 import shutil
-import multiprocessing
 import subprocess
+import multiprocessing
+from datetime import date
 
 
 def main():
-    # Check if the drive exists before continuing. If no drive found check again or quit
-    if os.path.exists("/Volumes/EOS_DIGITAL/DCIM/100CANON"):
-        DRIVE_PATH = '/Volumes/EOS_DIGITAL/DCIM/100CANON'
-        path_handler(DRIVE_PATH)
-    else:
-        QUIT_CONDITION = get_quit_condition()
-        if QUIT_CONDITION == 0 or QUIT_CONDITION == 1:
-            handle_quit_condition(QUIT_CONDITION)
-
-
-def get_quit_condition():
-    QUIT_CONDITION = input("Drive not found! Check again? (Y/N) ")
-    if QUIT_CONDITION == "Y" or QUIT_CONDITION == "y":
-        return 0
-    if QUIT_CONDITION == "N" or QUIT_CONDITION == "n":
-        return 1
-    else:
-        print("Invalid option!")
-        get_quit_condition()
-
-
-def handle_quit_condition(condition):
-    if condition == 0:
-        main()
+    EXTERNAL_DRIVE_PATH = "/Volumes/EOS_DIGITAL"
+    if os.path.exists(EXTERNAL_DRIVE_PATH):
+        IMAGES_PATH = EXTERNAL_DRIVE_PATH + "/DCIM/100CANON"
+        IMAGES = get_images_from_path(IMAGES_PATH)
+        TODAY_DATE = get_formatted_date()
+        COPY_LOCAL = create_copy_local("/Users/cobymckinney/Documents/Photography/" + TODAY_DATE)
+        COPY_PROCESSES = []
+        for image in IMAGES:
+            IMAGE_PATH = IMAGES_PATH + "/" + image
+            COPY_PROCESSES.append(multiprocessing.Process(target=copy_image, args=(IMAGE_PATH, COPY_LOCAL)))
+        for copy_process in COPY_PROCESSES:
+            copy_process.start()
+            copy_process.join()
+        subprocess.call(["open", COPY_LOCAL])
+        eject_disk()
+        print("Images Copied and SD CARD Ejected!")
     else:
         exit()
 
 
-# Path Handler Function
-def path_handler(path):
-    FILES = grab_files(path, ".CR2")
-    FILE_DESTINATION = create_folder_for_files(input("Please name your new folder: "))
-    for file in FILES:
-        # Use multiprocessing to speed up the copying of files
-        multiprocessing.Process(target=copy_file, args=(FILE_DESTINATION, path+"/"+file)).start()
-    # Open Finder to the copied files
-    subprocess.call(["open", FILE_DESTINATION])
+def get_images_from_path(path):
+    image_list = []
+    for image in os.listdir(path):
+        image_list.append(image)
+    return image_list
 
 
-def grab_files(path, ext):
-    return_list = []
-    for file in os.listdir(path):
-        if file.endswith(ext):
-            return_list.append(file)
-    return return_list
+def copy_image(IMG_PATH, DEST):
+    shutil.copy2(IMG_PATH, DEST)
 
 
-# File copying handler
-def copy_file(dest, file):
-    shutil.copy2(file, dest)
-
-
-# Check if folder exists. If it does use it otherwise create it and continue
-def create_folder_for_files(folder_name):
-    if os.path.isdir("/Users/cobymckinney/Documents/Photography/" + folder_name):
-        return "/Users/cobymckinney/Documents/Photography/" + folder_name
+def create_copy_local(local):
+    if os.path.isdir(local):
+        return local
     else:
-        os.mkdir("/Users/cobymckinney/Documents/Photography/" + folder_name)
-        return "/Users/cobymckinney/Documents/Photography/" + folder_name
+        os.mkdir(local)
+        return local
 
 
-if __name__ == '__main__':
+def eject_disk():
+    os.system("diskutil unmountDisk /dev/disk3")
+
+
+def get_formatted_date():
+    today = date.today()
+    return today.strftime("%B-%d-%Y")
+
+
+if __name__ == "__main__":
     main()
