@@ -1,4 +1,3 @@
-# Script to automatically move files from SD card to my drive based on the type
 import os
 import shutil
 import multiprocessing
