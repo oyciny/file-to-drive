@@ -18,7 +18,6 @@ def main():
             COPY_PROCESSES.append(multiprocessing.Process(target=copy_image, args=(IMAGE_PATH, COPY_LOCAL)))
         for copy_process in COPY_PROCESSES:
             copy_process.start()
-            copy_process.join()
         subprocess.call(["open", COPY_LOCAL])
         eject_disk()
         print("Images Copied and SD CARD Ejected!")
